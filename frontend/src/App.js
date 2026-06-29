@@ -1,77 +1,66 @@
 import { useState } from "react";
-import Graph from "./components/Graph";
-import Sidebar from "./components/Sidebar";
 import Stats from "./components/Stats";
 import DivergenceAnalysis from "./components/DivergenceAnalysis";
-import "./index.css";
 import Ask from "./components/Ask";
+import Home from "./components/Home";
+import About from "./components/About";
+import "./index.css";
 
 export default function App() {
-    const [search, setSearch] = useState("");
-    const [selected, setSelected] = useState(null);
-    const [page, setPage] = useState("graph");
+    const [page, setPage] = useState("home");
+    const [initialQuestion, setInitialQuestion] = useState("");
+
+    const navigate = (p, question = "") => {
+        setPage(p);
+        if (question) setInitialQuestion(question);
+    };
 
     return (
-        <div style={{ display: "flex", height: "100vh", flexDirection: "column" }}>
-            <header style={{
-                padding: "16px 24px",
-                borderBottom: "1px solid #1e2a3a",
-                display: "flex",
-                alignItems: "center",
-                gap: "24px",
-                background: "#0d1220",
-            }}>
-                <h1 style={{ fontSize: "20px", fontWeight: 700, color: "#60a5fa" }}>
-                    🌐 SanctionScope
-                </h1>
+        <div style={{ display: "flex", height: "100vh", flexDirection: "column", background: "#0a0e1a" }}>
 
-                {/* Navigation */}
-                <div style={{ display: "flex", gap: "8px" }}>
-                    {[
-                        { key: "graph", label: "Graphe" },
-                        { key: "analysis", label: "Analyse Iran" },
-                        { key: "ask", label: "🔍 Analyser" },
-                    ].map(p => (
-                        <button key={p.key} onClick={() => setPage(p.key)} style={{
-                            padding: "6px 14px", borderRadius: "8px", border: "none", cursor: "pointer",
-                            background: page === p.key ? "#3b82f6" : "#1e2a3a",
-                            color: "#e2e8f0", fontSize: "13px", fontWeight: page === p.key ? 700 : 400,
-                        }}>
-                            {p.label}
-                        </button>
-                    ))}
-                </div>
+            {page !== "home" && (
+                <header style={{
+                    padding: "12px 24px",
+                    borderBottom: "1px solid #1e2a3a",
+                    display: "flex", alignItems: "center", gap: "20px",
+                    background: "#0d1220", flexShrink: 0,
+                }}>
+                    <button onClick={() => setPage("home")} style={{
+                        background: "none", border: "none", cursor: "pointer",
+                        fontSize: "18px", fontWeight: 700, color: "#60a5fa",
+                    }}>
+                        🌐 SanctionScope
+                    </button>
 
-                {page === "graph" && (
-                    <input
-                        value={search}
-                        onChange={e => setSearch(e.target.value)}
-                        placeholder="Rechercher une entité..."
-                        style={{
-                            background: "#1e2a3a",
-                            border: "1px solid #2d3748",
-                            borderRadius: "8px",
-                            padding: "8px 16px",
-                            color: "#e2e8f0",
-                            width: "300px",
-                            fontSize: "14px",
-                        }}
-                    />
-                )}
-                <Stats />
-            </header>
+                    <div style={{ display: "flex", gap: "6px" }}>
+                        {[
+                            { key: "ask",      label: "🔍 Analyser" },
+                            { key: "analysis", label: "⚖️ Comparer" },
+                            { key: "about",    label: "À propos" },
+                        ].map(p => (
+                            <button key={p.key} onClick={() => setPage(p.key)} style={{
+                                padding: "6px 14px", borderRadius: "8px", border: "none",
+                                cursor: "pointer",
+                                background: page === p.key ? "#1e3a5f" : "transparent",
+                                color: page === p.key ? "#60a5fa" : "#64748b",
+                                fontSize: "13px", fontWeight: page === p.key ? 700 : 400,
+                            }}>
+                                {p.label}
+                            </button>
+                        ))}
+                    </div>
+
+                    <div style={{ marginLeft: "auto" }}>
+                        <Stats />
+                    </div>
+                </header>
+            )}
 
             <div style={{ flex: 1, overflow: "auto" }}>
-                {page === "graph" ? (
-                    <div style={{ display: "flex", height: "100%" }}>
-                        <Graph search={search} onSelect={setSelected} />
-                        <Sidebar entity={selected} />
-                    </div>
-                ) : page === "analysis" ? (
-                    <DivergenceAnalysis />
-                ) : (
-                    <Ask />
-                )}
+                {page === "home"     ? <Home onNavigate={navigate} /> :
+                    page === "analysis" ? <DivergenceAnalysis /> :
+                        page === "about"    ? <About /> :
+                            <Ask initialQuestion={initialQuestion} />}
             </div>
         </div>
     );

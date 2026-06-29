@@ -35,126 +35,94 @@ const SECTOR_COLORS = {
     "Autre": "#64748b",
 };
 
-export default function DivergenceAnalysis() {
+function ProgramDetail({ program, onBack }) {
     const [data, setData] = useState(null);
     const [activeTab, setActiveTab] = useState("ofac_only");
     const [search, setSearch] = useState("");
 
     useEffect(() => {
-        axios.get("http://localhost:8000/analysis/divergence?program=IRAN")
+        axios.get(`http://localhost:8000/analysis/divergence?program=${program.key}`)
             .then(r => setData(r.data));
-    }, []);
+    }, [program.key]);
 
     if (!data) return (
-        <div style={{ padding: 40, color: "#64748b" }}>Chargement de l'analyse...</div>
+        <div style={{ padding: 40, color: "#64748b", textAlign: "center" }}>
+            Chargement...
+        </div>
     );
 
     const ofacSectors = countBySector(data.ofac_only);
-    const unSectors = countBySector(data.un_only);
-    const maxSector = Math.max(...Object.values(ofacSectors));
-
+    const maxSector = Math.max(...Object.values(ofacSectors), 1);
     const filtered = (data[activeTab] || []).filter(e =>
         e.name.toLowerCase().includes(search.toLowerCase())
     );
 
     return (
-        <div style={{ padding: "32px", maxWidth: "1200px", margin: "0 auto", color: "#e2e8f0" }}>
+        <div style={{ padding: "32px", maxWidth: "1100px", margin: "0 auto", color: "#e2e8f0" }}>
 
-            {/* Titre */}
-            <div style={{ marginBottom: "32px" }}>
-                <h1 style={{ fontSize: "28px", fontWeight: 800, marginBottom: "8px" }}>
-                    Iran — Analyse de la divergence des sanctions
-                </h1>
-                <p style={{ color: "#94a3b8", fontSize: "15px", lineHeight: 1.6 }}>
-                    Les États-Unis sanctionnent l'Iran de façon quasi-unilatérale.
-                    Sur <strong style={{ color: "#f97316" }}>{data.ofac_total + data.un_total} entités</strong> sanctionnées au total,
-                    seulement <strong style={{ color: "#10b981" }}>{data.both.length}</strong> le sont conjointement par l'OFAC et l'ONU.
-                    Ce gap révèle deux stratégies fondamentalement différentes face à Téhéran.
-                </p>
+            <button onClick={onBack} style={{
+                background: "none", border: "none", color: "#64748b",
+                cursor: "pointer", fontSize: "13px", marginBottom: "20px", padding: 0
+            }}>
+                ← Retour à la vue d'ensemble
+            </button>
+
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "8px" }}>
+                <span style={{ fontSize: "32px" }}>{program.flag}</span>
+                <h1 style={{ fontSize: "26px", fontWeight: 800 }}>{program.label}</h1>
             </div>
+            <p style={{ color: "#94a3b8", fontSize: "14px", marginBottom: "28px" }}>
+                Analyse comparative des sanctions OFAC (américaines) vs ONU (multilatérales)
+            </p>
 
-            {/* Métriques clés */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "16px", marginBottom: "32px" }}>
+            {/* Métriques */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", marginBottom: "24px" }}>
                 {[
-                    { label: "Entités OFAC", value: data.ofac_total, color: "#ef4444", desc: "Sanctions américaines" },
-                    { label: "Entités ONU", value: data.un_total, color: "#3b82f6", desc: "Sanctions multilatérales" },
-                    { label: "En commun", value: data.both.length, color: "#10b981", desc: "Consensus international" },
-                    { label: "Divergence", value: `${data.divergence_rate}%`, color: "#f97316", desc: "Sanctions unilatérales US" },
+                    { label: "Entités OFAC", value: data.ofac_total, color: "#ef4444" },
+                    { label: "Entités ONU", value: data.un_total, color: "#3b82f6" },
+                    { label: "En commun", value: data.both.length, color: "#10b981" },
+                    { label: "Divergence", value: `${data.divergence_rate}%`, color: program.color || "#f97316" },
                 ].map(m => (
                     <div key={m.label} style={{
                         background: "#0d1220", border: "1px solid #1e2a3a",
-                        borderRadius: "12px", padding: "20px"
+                        borderRadius: "12px", padding: "16px"
                     }}>
-                        <div style={{ fontSize: "32px", fontWeight: 800, color: m.color }}>{m.value}</div>
-                        <div style={{ fontSize: "14px", fontWeight: 600, marginTop: "4px" }}>{m.label}</div>
-                        <div style={{ fontSize: "12px", color: "#64748b", marginTop: "2px" }}>{m.desc}</div>
+                        <div style={{ fontSize: "28px", fontWeight: 800, color: m.color }}>{m.value}</div>
+                        <div style={{ fontSize: "12px", color: "#64748b", marginTop: "4px" }}>{m.label}</div>
                     </div>
                 ))}
             </div>
 
-            {/* Graphe par secteur */}
-            <div style={{
-                background: "#0d1220", border: "1px solid #1e2a3a",
-                borderRadius: "12px", padding: "24px", marginBottom: "32px"
-            }}>
-                <h2 style={{ fontSize: "16px", fontWeight: 700, marginBottom: "20px" }}>
-                    Répartition par secteur — Sanctions OFAC uniquement
-                </h2>
-                {Object.entries(ofacSectors)
-                    .sort((a, b) => b[1] - a[1])
-                    .map(([sector, count]) => (
-                        <div key={sector} style={{ marginBottom: "12px" }}>
+            {/* Secteurs */}
+            {Object.keys(ofacSectors).length > 0 && (
+                <div style={{
+                    background: "#0d1220", border: "1px solid #1e2a3a",
+                    borderRadius: "12px", padding: "20px", marginBottom: "20px"
+                }}>
+                    <div style={{ fontSize: "11px", color: "#64748b", fontWeight: 700, marginBottom: "16px" }}>
+                        RÉPARTITION PAR SECTEUR — SANCTIONS OFAC
+                    </div>
+                    {Object.entries(ofacSectors).sort((a, b) => b[1] - a[1]).map(([sector, count]) => (
+                        <div key={sector} style={{ marginBottom: "10px" }}>
                             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
-                                <span style={{ fontSize: "13px", color: SECTOR_COLORS[sector] }}>{sector}</span>
-                                <span style={{ fontSize: "13px", color: "#94a3b8" }}>{count} entités</span>
+                                <span style={{ fontSize: "12px", color: SECTOR_COLORS[sector] }}>{sector}</span>
+                                <span style={{ fontSize: "12px", color: "#94a3b8" }}>{count}</span>
                             </div>
-                            <div style={{ background: "#1e2a3a", borderRadius: "4px", height: "8px" }}>
+                            <div style={{ background: "#1e2a3a", borderRadius: "4px", height: "6px" }}>
                                 <div style={{
                                     background: SECTOR_COLORS[sector],
                                     width: `${(count / maxSector) * 100}%`,
-                                    height: "8px", borderRadius: "4px",
-                                    transition: "width 0.5s ease"
+                                    height: "6px", borderRadius: "4px"
                                 }} />
                             </div>
                         </div>
                     ))}
-            </div>
-
-            {/* Analyse narrative */}
-            <div style={{
-                background: "#0d1220", border: "1px solid #1e2a3a",
-                borderRadius: "12px", padding: "24px", marginBottom: "32px"
-            }}>
-                <h2 style={{ fontSize: "16px", fontWeight: 700, marginBottom: "16px" }}>
-                    💡 Ce que révèlent les données
-                </h2>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
-                    <div style={{ padding: "16px", background: "#0a0e1a", borderRadius: "8px", borderLeft: "3px solid #ef4444" }}>
-                        <div style={{ fontSize: "13px", fontWeight: 700, color: "#ef4444", marginBottom: "8px" }}>
-                            🇺🇸 Stratégie américaine — Étranglement économique
-                        </div>
-                        <div style={{ fontSize: "13px", color: "#94a3b8", lineHeight: 1.6 }}>
-                            L'OFAC cible l'ensemble de l'économie iranienne : banques, pétrole,
-                            shipping, crypto-monnaies. L'objectif est de priver Téhéran de tout
-                            accès au système financier international.
-                        </div>
-                    </div>
-                    <div style={{ padding: "16px", background: "#0a0e1a", borderRadius: "8px", borderLeft: "3px solid #3b82f6" }}>
-                        <div style={{ fontSize: "13px", fontWeight: 700, color: "#3b82f6", marginBottom: "8px" }}>
-                            🌍 Stratégie ONU — Ciblage nucléaire et militaire
-                        </div>
-                        <div style={{ fontSize: "13px", color: "#94a3b8", lineHeight: 1.6 }}>
-                            L'ONU se limite aux entités directement liées au programme nucléaire
-                            et balistique. Cette approche multilatérale reflète le consensus
-                            minimum obtenu avec la Russie et la Chine au Conseil de Sécurité.
-                        </div>
-                    </div>
                 </div>
-            </div>
+            )}
 
-            {/* Liste des entités */}
-            <div style={{ background: "#0d1220", border: "1px solid #1e2a3a", borderRadius: "12px", padding: "24px" }}>
-                <div style={{ display: "flex", gap: "12px", marginBottom: "20px", flexWrap: "wrap", alignItems: "center" }}>
+            {/* Liste entités */}
+            <div style={{ background: "#0d1220", border: "1px solid #1e2a3a", borderRadius: "12px", padding: "20px" }}>
+                <div style={{ display: "flex", gap: "10px", marginBottom: "16px", flexWrap: "wrap", alignItems: "center" }}>
                     {[
                         { key: "ofac_only", label: `OFAC uniquement (${data.ofac_only.length})`, color: "#ef4444" },
                         { key: "un_only", label: `ONU uniquement (${data.un_only.length})`, color: "#3b82f6" },
@@ -163,7 +131,7 @@ export default function DivergenceAnalysis() {
                         <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={{
                             padding: "6px 14px", borderRadius: "8px", border: "none", cursor: "pointer",
                             background: activeTab === tab.key ? tab.color : "#1e2a3a",
-                            color: "#e2e8f0", fontSize: "13px", fontWeight: activeTab === tab.key ? 700 : 400,
+                            color: "#e2e8f0", fontSize: "12px", fontWeight: activeTab === tab.key ? 700 : 400,
                         }}>
                             {tab.label}
                         </button>
@@ -174,7 +142,7 @@ export default function DivergenceAnalysis() {
                         placeholder="Filtrer..."
                         style={{
                             marginLeft: "auto", background: "#1e2a3a", border: "1px solid #2d3748",
-                            borderRadius: "8px", padding: "6px 14px", color: "#e2e8f0", fontSize: "13px"
+                            borderRadius: "8px", padding: "6px 12px", color: "#e2e8f0", fontSize: "12px"
                         }}
                     />
                 </div>
@@ -183,13 +151,13 @@ export default function DivergenceAnalysis() {
                     {filtered.slice(0, 100).map(e => (
                         <div key={e.id} style={{
                             display: "flex", justifyContent: "space-between", alignItems: "center",
-                            padding: "8px 0", borderBottom: "1px solid #1e2a3a"
+                            padding: "7px 0", borderBottom: "1px solid #1e2a3a"
                         }}>
                             <div>
                                 <span style={{ fontSize: "13px" }}>{e.name}</span>
                                 <span style={{
                                     marginLeft: "8px", fontSize: "11px", color: "#64748b",
-                                    background: "#1e2a3a", padding: "2px 6px", borderRadius: "4px"
+                                    background: "#1e2a3a", padding: "1px 6px", borderRadius: "4px"
                                 }}>
                   {detectSector(e.name)}
                 </span>
@@ -205,6 +173,93 @@ export default function DivergenceAnalysis() {
                     ))}
                 </div>
             </div>
+        </div>
+    );
+}
+
+export default function DivergenceAnalysis() {
+    const [overview, setOverview] = useState(null);
+    const [selected, setSelected] = useState(null);
+
+    useEffect(() => {
+        axios.get("http://localhost:8000/analysis/overview").then(r => setOverview(r.data));
+    }, []);
+
+    if (selected) return <ProgramDetail program={selected} onBack={() => setSelected(null)} />;
+
+    return (
+        <div style={{ padding: "32px", maxWidth: "1100px", margin: "0 auto", color: "#e2e8f0" }}>
+
+            <div style={{ marginBottom: "28px" }}>
+                <h1 style={{ fontSize: "26px", fontWeight: 800, marginBottom: "6px" }}>
+                    ⚖️ Comparer les sanctions
+                </h1>
+                <p style={{ color: "#64748b", fontSize: "13px" }}>
+                    Vue d'ensemble des régimes de sanctions par pays — divergences entre OFAC (américain) et ONU (multilatéral)
+                </p>
+            </div>
+
+            {!overview ? (
+                <div style={{ color: "#64748b", textAlign: "center", padding: 40 }}>Chargement...</div>
+            ) : (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "16px" }}>
+                    {overview.map(p => (
+                        <div
+                            key={p.key}
+                            onClick={() => setSelected(p)}
+                            style={{
+                                background: "#0d1220", border: "1px solid #1e2a3a",
+                                borderRadius: "14px", padding: "24px", cursor: "pointer",
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.borderColor = p.color}
+                            onMouseLeave={e => e.currentTarget.style.borderColor = "#1e2a3a"}
+                        >
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px" }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                                    <span style={{ fontSize: "24px" }}>{p.flag}</span>
+                                    <div>
+                                        <div style={{ fontSize: "16px", fontWeight: 700 }}>{p.label}</div>
+                                        <div style={{ fontSize: "11px", color: "#64748b", marginTop: "2px" }}>
+                                            {p.total} entités sanctionnées
+                                        </div>
+                                    </div>
+                                </div>
+                                <div style={{
+                                    fontSize: "20px", fontWeight: 800, color: p.color
+                                }}>
+                                    {p.divergence}%
+                                </div>
+                            </div>
+
+                            {/* Barre OFAC vs ONU */}
+                            <div style={{ marginBottom: "12px" }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#64748b", marginBottom: "4px" }}>
+                                    <span>OFAC : {p.ofac}</span>
+                                    <span>ONU : {p.un}</span>
+                                </div>
+                                <div style={{ background: "#1e2a3a", borderRadius: "4px", height: "6px", display: "flex", overflow: "hidden" }}>
+                                    <div style={{
+                                        background: "#ef4444",
+                                        width: `${p.total > 0 ? (p.ofac / p.total) * 100 : 0}%`,
+                                        height: "6px"
+                                    }} />
+                                    <div style={{
+                                        background: "#3b82f6",
+                                        width: `${p.total > 0 ? (p.un / p.total) * 100 : 0}%`,
+                                        height: "6px"
+                                    }} />
+                                </div>
+                            </div>
+
+                            <div style={{ fontSize: "12px", color: p.color, fontWeight: 600 }}>
+                                {p.divergence > 90 ? "Sanctions quasi-unilatérales américaines" :
+                                    p.divergence > 50 ? "Forte divergence US/ONU" :
+                                        "Consensus international relatif"} →
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
         </div>
     );
 }

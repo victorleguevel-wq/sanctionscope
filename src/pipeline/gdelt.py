@@ -42,6 +42,14 @@ EVENT_CODES = {
     "200": "Conflit armé massif",
 }
 
+def _safe_float(value, default=None):
+    """Convertit une valeur en float, retourne default si impossible."""
+    try:
+        f = float(value)
+        return f if not pd.isna(f) else default
+    except (TypeError, ValueError):
+        return default
+
 def get_gdelt_events(country_keyword: str, days: int = 30) -> list[dict]:
     """Récupère les événements GDELT pour un pays donné."""
 
@@ -112,15 +120,27 @@ def get_gdelt_events(country_keyword: str, days: int = 30) -> list[dict]:
         events = []
         for _, row in filtered.iterrows():
             event_code = str(row.get("EventCode", ""))[:3]
+
+            # Coordonnées de l'action (priorité) ou de l'acteur 1
+            lat = _safe_float(row.get("ActionGeo_Lat"))
+            lon = _safe_float(row.get("ActionGeo_Long"))
+
+            # Fallback sur Actor1Geo si ActionGeo absent
+            if lat is None or lon is None:
+                lat = _safe_float(row.get("Actor1Geo_Lat"))
+                lon = _safe_float(row.get("Actor1Geo_Long"))
+
             events.append({
                 "date": str(row.get("SQLDATE", "")),
                 "actor1": str(row.get("Actor1Name", "")),
                 "actor2": str(row.get("Actor2Name", "")),
                 "event_type": EVENT_CODES.get(event_code, f"Événement {event_code}"),
-                "goldstein": float(row.get("GoldsteinScale", 0)),
-                "tone": float(row.get("AvgTone", 0)),
+                "goldstein": _safe_float(row.get("GoldsteinScale"), default=0.0),
+                "tone": _safe_float(row.get("AvgTone"), default=0.0),
                 "location": str(row.get("ActionGeo_FullName", "")),
                 "url": str(row.get("SOURCEURL", "")),
+                "lat": lat,   # ← coordonnées natives GDELT
+                "lon": lon,   # ← coordonnées natives GDELT
             })
 
         return events
