@@ -18,6 +18,7 @@ def parse_un(filepath: Path = RAW_DATA / "consolidated.xml") -> list[dict]:
         name = " ".join(filter(None, [first_name, second_name, third_name])).strip()
 
         nationality = individual.findtext(".//NATIONALITY/VALUE") or ""
+        un_list_type = individual.findtext("UN_LIST_TYPE") or "UN"
 
         aliases = []
         for aka in individual.findall(".//INDIVIDUAL_ALIAS"):
@@ -33,7 +34,7 @@ def parse_un(filepath: Path = RAW_DATA / "consolidated.xml") -> list[dict]:
             "uid": f"UN-{uid}",
             "name": name,
             "type": "Individual",
-            "programs": ["UN"],
+            "programs": [un_list_type.upper()],
             "aliases": aliases,
             "nationalities": [nationality] if nationality else [],
         })
@@ -41,6 +42,7 @@ def parse_un(filepath: Path = RAW_DATA / "consolidated.xml") -> list[dict]:
     for entity in root.findall(".//ENTITY"):
         uid = entity.findtext("DATAID")
         name = entity.findtext("FIRST_NAME") or ""
+        un_list_type = entity.findtext("UN_LIST_TYPE") or "UN"
 
         aliases = []
         for aka in entity.findall(".//ENTITY_ALIAS"):
@@ -52,7 +54,7 @@ def parse_un(filepath: Path = RAW_DATA / "consolidated.xml") -> list[dict]:
             "uid": f"UN-{uid}",
             "name": name,
             "type": "Entity",
-            "programs": ["UN"],
+            "programs": [un_list_type.upper()],
             "aliases": aliases,
             "nationalities": [],
         })
