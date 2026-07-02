@@ -239,7 +239,6 @@ export default function Graph({ search, onSelect }) {
             <div style={{
               position: "absolute", bottom: 20, left: "50%", transform: "translateX(-50%)",
               background: "#0d1220", border: "1px solid #1e2a3a", borderRadius: "10px",
-              padding: "8px 18px", fontSize: "12px", color: "#64748b", zIndex: 10,
               textAlign: "center", pointerEvents: "none", whiteSpace: "nowrap"
             }}>
               Recherche une entité · Clique pour explorer · Scroll pour zoomer

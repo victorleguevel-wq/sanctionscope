@@ -14,9 +14,11 @@ class Entity(Base):
     entity_type = Column(String)                     # INDIVIDUAL / Entity / Vessel
     source      = Column(String)                     # OFAC, UN, EU...
     programs    = Column(ARRAY(String))              # RUSSIA, IRAN, CUBA...
+    target_country = Column(String, index=True)
 
     aliases     = relationship("Alias", back_populates="entity")
     sanctions   = relationship("Sanction", back_populates="entity")
+    nationality = Column(String)  # pays cible principal
 
 
 class Alias(Base):

@@ -236,6 +236,7 @@ export default function DivergenceAnalysis() {
                                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#64748b", marginBottom: "4px" }}>
                                     <span>OFAC : {p.ofac}</span>
                                     <span>ONU : {p.un}</span>
+                                    {p.cn > 0 && <span>CN : {p.cn}</span>}
                                 </div>
                                 <div style={{ background: "#1e2a3a", borderRadius: "4px", height: "6px", display: "flex", overflow: "hidden" }}>
                                     <div style={{
@@ -248,6 +249,11 @@ export default function DivergenceAnalysis() {
                                         width: `${p.total > 0 ? (p.un / p.total) * 100 : 0}%`,
                                         height: "6px"
                                     }} />
+                                    {p.cn > 0 && <div style={{
+                                        background: "#dc2626",
+                                        width: `${p.total > 0 ? (p.cn / p.total) * 100 : 0}%`,
+                                        height: "6px"
+                                    }} />}
                                 </div>
                             </div>
 

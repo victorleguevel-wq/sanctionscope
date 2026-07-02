@@ -1,6 +1,6 @@
 import { useState } from "react";
 import Stats from "./components/Stats";
-import DivergenceAnalysis from "./components/DivergenceAnalysis";
+import SanctionsMap from "./components/SanctionsMap";
 import Ask from "./components/Ask";
 import Home from "./components/Home";
 import About from "./components/About";
@@ -58,7 +58,7 @@ export default function App() {
 
             <div style={{ flex: 1, overflow: "auto" }}>
                 {page === "home"     ? <Home onNavigate={navigate} /> :
-                    page === "analysis" ? <DivergenceAnalysis /> :
+                    page === "analysis" ? <SanctionsMap />:
                         page === "about"    ? <About /> :
                             <Ask initialQuestion={initialQuestion} />}
             </div>

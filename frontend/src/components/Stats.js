@@ -15,22 +15,36 @@ export default function Stats() {
       label: "OFAC",
       value: stats.total_ofac?.toLocaleString(),
       sublabel: "entités sanctionnées",
-      tooltip: "Entités inscrites sur la liste SDN (Specially Designated Nationals) de l'OFAC américain",
-      color: "#a78bfa",
+      tooltip: "Entités inscrites sur la liste SDN de l'OFAC américain",
+      color: "#ef4444",
     },
     {
       label: "ONU",
       value: stats.total_un?.toLocaleString(),
       sublabel: "entités sanctionnées",
       tooltip: "Entités inscrites sur la liste consolidée des sanctions du Conseil de sécurité de l'ONU",
-      color: "#60a5fa",
+      color: "#3b82f6",
+    },
+    {
+      label: "EU",
+      value: stats.total_eu?.toLocaleString(),
+      sublabel: "entités sanctionnées",
+      tooltip: "Entités inscrites sur les listes de sanctions de l'Union Européenne (OpenSanctions)",
+      color: "#22c55e",
+    },
+    {
+      label: "CN",
+      value: stats.total_cn?.toLocaleString(),
+      sublabel: "contre-sanctions",
+      tooltip: "Entités visées par les contre-sanctions chinoises",
+      color: "#f59e0b",
     },
     {
       label: "Matches",
       value: stats.total_matches?.toLocaleString(),
       sublabel: "entités en commun",
-      tooltip: "Entités présentes à la fois dans les listes OFAC et ONU (correspondances par nom normalisé)",
-      color: "#34d399",
+      tooltip: "Entités présentes à la fois dans les listes OFAC et ONU",
+      color: "#a78bfa",
     },
   ];
 
@@ -40,7 +54,7 @@ export default function Stats() {
             <div
                 key={s.label}
                 title={s.tooltip}
-                style={{ textAlign: "center", cursor: "help", position: "relative" }}
+                style={{ textAlign: "center", cursor: "help" }}
             >
               <div style={{ fontSize: "18px", fontWeight: 700, color: s.color, lineHeight: 1 }}>
                 {s.value}

@@ -40,43 +40,12 @@ export default function Ask({ initialQuestion = "" }) {
     };
 
     const exportPDF = async () => {
-        if (!result || !resultRef.current) return;
+        if (!result) return;
         setExporting(true);
         try {
-            const { default: jsPDF } = await import("jspdf");
-            const { default: html2canvas } = await import("html2canvas");
-
-            const el = resultRef.current;
-            const canvas = await html2canvas(el, {
-                scale: 2,
-                backgroundColor: "#0a0e1a",
-                useCORS: true,
-                logging: false,
-            });
-
-            const imgData = canvas.toDataURL("image/jpeg", 0.92);
-            const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
-
-            const pageW = pdf.internal.pageSize.getWidth();
-            const pageH = pdf.internal.pageSize.getHeight();
-            const imgW = pageW - 28; // marges 14mm de chaque côté
-            const imgH = (canvas.height * imgW) / canvas.width;
-
-            let y = 14;
-            let heightLeft = imgH;
-
-            pdf.addImage(imgData, "JPEG", 14, y, imgW, imgH);
-            heightLeft -= pageH - 14;
-
-            while (heightLeft > 0) {
-                y = heightLeft - imgH + 14;
-                pdf.addPage();
-                pdf.addImage(imgData, "JPEG", 14, y, imgW, imgH);
-                heightLeft -= pageH - 14;
-            }
-
-            const filename = `sanctionscope-${question.slice(0, 40).replace(/\s+/g, "-").toLowerCase()}.pdf`;
-            pdf.save(filename);
+            const { exportAnalysisPDF } = await import("../utils/pdfExport");
+            const ans = typeof result.answer === "string" ? JSON.parse(result.answer) : result.answer;
+            exportAnalysisPDF(question, ans, result.entities_used, result.gdelt_events);
         } catch (err) {
             console.error("Export PDF échoué :", err);
             alert("Export échoué : " + err.message);
@@ -100,9 +69,9 @@ export default function Ask({ initialQuestion = "" }) {
         <div style={{ padding: "32px", maxWidth: "960px", margin: "0 auto", color: "#e2e8f0" }}>
 
             <div style={{ marginBottom: "28px" }}>
-                <h1 style={{ fontSize: "26px", fontWeight: 800, marginBottom: "6px" }}>🔍 Analyser</h1>
+                <h1 style={{ fontSize: "26px", fontWeight: 800, marginBottom: "6px" }}>Analyser</h1>
                 <p style={{ color: "#64748b", fontSize: "13px" }}>
-                    Posez une question — le système agrège sanctions OFAC/ONU + événements GDELT temps réel + synthèse IA
+                    Le système agrège sanctions OFAC/ONU + événements GDELT temps réel et utilise l'IA pour synthétiser
                 </p>
             </div>
 
@@ -111,7 +80,7 @@ export default function Ask({ initialQuestion = "" }) {
                     value={question}
                     onChange={e => setQuestion(e.target.value)}
                     onKeyDown={e => e.key === "Enter" && ask()}
-                    placeholder="Ex: Programme nucléaire iranien"
+                    placeholder="Posez une question"
                     style={{
                         flex: 1, background: "#0d1220", border: "1px solid #2d3748",
                         borderRadius: "10px", padding: "14px 18px", color: "#e2e8f0",
@@ -177,6 +146,9 @@ export default function Ask({ initialQuestion = "" }) {
                     <div style={{ color: "#ef4444", padding: "20px" }}>{result.error || "Erreur"}</div>
                 );
 
+                const entitiesCount = result.entities_used?.length || 0;
+                const hasNoData = entitiesCount === 0;
+
                 return (
                     <div ref={resultRef} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
 
@@ -195,6 +167,36 @@ export default function Ask({ initialQuestion = "" }) {
                                 {new Date().toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
                             </div>
                         </div>
+
+                        {/* NOUVEAU — bandeau d'avertissement global */}
+                        <div style={{
+                            display: "flex", alignItems: "flex-start", gap: "10px",
+                            background: "#1a1508", border: "1px solid #4a3a0e",
+                            borderRadius: "10px", padding: "12px 16px",
+                        }}>
+                            <span style={{ fontSize: "16px", flexShrink: 0 }}>⚠️</span>
+                            <div style={{ fontSize: "12px", color: "#d4a72c", lineHeight: 1.5 }}>
+                                Cette synthèse est générée par IA à partir des données de sanctions ci-dessous et de la
+                                connaissance générale du modèle. Les dates, chiffres et affirmations sensibles doivent
+                                être vérifiés auprès des sources primaires avant toute utilisation.
+                            </div>
+                        </div>
+
+                        {/* NOUVEAU — alerte si aucune entité trouvée */}
+                        {hasNoData && (
+                            <div style={{
+                                display: "flex", alignItems: "flex-start", gap: "10px",
+                                background: "#1a0d0d", border: "1px solid #4a1e1e",
+                                borderRadius: "10px", padding: "12px 16px",
+                            }}>
+                                <span style={{ fontSize: "16px", flexShrink: 0 }}>🚫</span>
+                                <div style={{ fontSize: "12px", color: "#f87171", lineHeight: 1.5 }}>
+                                    Aucune entité sanctionnée directement liée n'a été trouvée dans la base de données
+                                    pour cette question. La réponse ci-dessous repose uniquement sur la connaissance
+                                    générale du modèle, pas sur les données de sanctions de SanctionScope.
+                                </div>
+                            </div>
+                        )}
 
                         {ans.summary && (
                             <div style={{
@@ -228,7 +230,15 @@ export default function Ask({ initialQuestion = "" }) {
 
                         {ans.timeline?.length > 0 && (
                             <div style={{ background: "#0d1220", border: "1px solid #1e2a3a", borderRadius: "12px", padding: "20px" }}>
-                                <div style={{ fontSize: "11px", color: "#64748b", fontWeight: 700, marginBottom: "20px" }}>CHRONOLOGIE</div>
+                                <div style={{
+                                    display: "flex", alignItems: "baseline", gap: "10px", marginBottom: "20px",
+                                }}>
+                                    <div style={{ fontSize: "11px", color: "#64748b", fontWeight: 700 }}>CHRONOLOGIE</div>
+                                    {/* NOUVEAU — précision sur l'origine des dates */}
+                                    <div style={{ fontSize: "10px", color: "#334155", fontStyle: "italic" }}>
+                                        dates générées par IA — non extraites des données de sanctions structurées
+                                    </div>
+                                </div>
                                 <div style={{ position: "relative" }}>
                                     <div style={{ position: "absolute", left: "60px", top: 0, bottom: 0, width: "2px", background: "#1e2a3a" }} />
                                     {ans.timeline.map((item, i) => (
@@ -246,8 +256,18 @@ export default function Ask({ initialQuestion = "" }) {
                                             <div style={{
                                                 flex: 1, padding: "8px 14px", borderRadius: "8px",
                                                 background: "#0a0e1a", border: "1px solid #1e2a3a",
-                                                fontSize: "13px", lineHeight: 1.5, color: "#94a3b8"
-                                            }}>{item.event}</div>
+                                                fontSize: "13px", lineHeight: 1.5, color: "#94a3b8",
+                                                display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "10px",
+                                            }}>
+                                                <span>{item.event}</span>
+                                                {/* NOUVEAU — tag IA sur chaque item */}
+                                                <span style={{
+                                                    fontSize: "8px", fontWeight: 700, color: "#475569",
+                                                    background: "#0d1220", border: "1px solid #1e2a3a",
+                                                    borderRadius: "4px", padding: "2px 5px",
+                                                    flexShrink: 0, whiteSpace: "nowrap",
+                                                }}>IA</span>
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
@@ -289,7 +309,6 @@ export default function Ask({ initialQuestion = "" }) {
                                             || fig.role?.toLowerCase().includes("président")
                                             || !fig.name?.includes(" ")
                                             : true;
-                                        // Heuristique simple : si le nom contient "Bank", "Co.", "Corp", "Ltd", "Group" → organisation
                                         const orgKeywords = ["bank", "co.", "corp", "ltd", "group", "company", "holding",
                                             "ministry", "ministère", "organization", "agency", "fund",
                                             "industries", "trading", "international", "enterprise"];
@@ -305,7 +324,6 @@ export default function Ask({ initialQuestion = "" }) {
                                                 padding: "12px 14px", borderRadius: "10px",
                                                 background: "#0a0e1a", border: "1px solid #1e2a3a",
                                             }}>
-                                                {/* Type badge vertical */}
                                                 <div style={{
                                                     fontSize: "9px", fontWeight: 700, letterSpacing: "0.06em",
                                                     color: typeColor, background: typeBg,

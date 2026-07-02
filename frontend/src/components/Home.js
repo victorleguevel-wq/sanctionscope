@@ -1,17 +1,17 @@
 const HOOK_STATS = [
     {
-        value: "19×",
-        label: "plus d'entités iraniennes sanctionnées par Washington que par l'ONU",
+        value: "5,6×",
+        label: "plus d'entités iraniennes sanctionnées par Washington (674) que par l'ONU (121)",
         color: "#ef4444",
     },
     {
-        value: "94%",
-        label: "des entités russes sanctionnées le sont uniquement par les États-Unis",
+        value: "0",
+        label: "entité russe sanctionnée par l'ONU — contre 6 261 par les USA et 320 par l'UE (veto russe au Conseil de sécurité)",
         color: "#f97316",
     },
     {
         value: "146",
-        label: "entités reconnues par les deux — le consensus international réel",
+        label: "entités reconnues à la fois par les USA et l'ONU — le consensus international réel",
         color: "#34d399",
     },
 ];
@@ -21,7 +21,7 @@ const FEATURES = [
         key: "ask",
         icon: "🔍",
         title: "Poser une question",
-        description: "Interroge la base en langage naturel. Le système croise les listes de sanctions OFAC/ONU avec les événements géopolitiques du jour et produit une synthèse structurée.",
+        description: "Interroge la base en langage naturel. Le système croise les listes de sanctions OFAC/ONU/UE/Chine avec les événements géopolitiques du jour et produit une synthèse structurée.",
         tag: "IA + Temps réel",
         color: "#8b5cf6",
         cta: "Analyser →",
@@ -30,7 +30,7 @@ const FEATURES = [
         key: "analysis",
         icon: "⚖️",
         title: "Comparer les juridictions",
-        description: "Visualise les divergences entre les sanctions américaines et onusiennes pays par pays. Comprends pourquoi Washington et le Conseil de sécurité ne sanctionnent pas les mêmes acteurs.",
+        description: "Visualise les divergences entre sanctions américaines, onusiennes, européennes et chinoises pays par pays. Comprends pourquoi Washington, Bruxelles, le Conseil de sécurité et Pékin ne sanctionnent pas les mêmes acteurs.",
         tag: "Analyse comparative",
         color: "#f97316",
         cta: "Comparer →",
@@ -62,7 +62,7 @@ export default function Home({ onNavigate }) {
                     fontSize: "12px", color: "#60a5fa", marginBottom: "28px",
                     letterSpacing: "0.05em",
                 }}>
-                    OFAC · ONU · GDELT · Open source
+                    OFAC · ONU · UE · Chine · GDELT · Open source
                 </div>
 
                 <h1 style={{
@@ -77,7 +77,7 @@ export default function Home({ onNavigate }) {
                     fontSize: "18px", color: "#94a3b8", lineHeight: 1.75,
                     maxWidth: "580px", margin: "0 auto 48px",
                 }}>
-                    20 000 entités sanctionnées, deux institutions, des agendas divergents.
+                    Près de 30 000 entités sanctionnées, quatre juridictions, des agendas divergents.
                     SanctionScope rend ces données lisibles — et les questions géopolitiques qu'elles posent, visibles.
                 </p>
 
@@ -138,7 +138,8 @@ export default function Home({ onNavigate }) {
                 <p style={{ fontSize: "16px", color: "#94a3b8", lineHeight: 1.8, maxWidth: "640px", margin: "0 auto" }}>
                     Les sanctions américaines sont décidées par le pouvoir exécutif, sans droit de veto.
                     Les sanctions onusiennes exigent l'unanimité du Conseil de sécurité — où la Russie et la Chine siègent.
-                    L'écart entre les deux listes est une carte de la géopolitique mondiale.
+                    L'Union Européenne suit son propre processus intergouvernemental, tandis que la Chine répond
+                    surtout par des contre-sanctions. L'écart entre ces quatre listes est une carte de la géopolitique mondiale.
                 </p>
             </div>
 
@@ -228,7 +229,7 @@ export default function Home({ onNavigate }) {
                     🌐 SanctionScope
                 </div>
                 <div style={{ fontSize: "12px", color: "#334155" }}>
-                    Sources : OFAC SDN · Consolidated UN List · GDELT · API Anthropic
+                    Sources : OFAC SDN · Consolidated UN List · EU Consolidated List · MOFA China · GDELT · API Anthropic
                 </div>
             </div>
 
