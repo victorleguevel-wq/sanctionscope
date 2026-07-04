@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import EventMap from "./EventMap";
+import Timeline from "./Timeline";
 
 export default function Ask({ initialQuestion = "" }) {
     const [question, setQuestion] = useState("");
@@ -228,51 +229,7 @@ export default function Ask({ initialQuestion = "" }) {
 
                         {result.gdelt_events?.length > 0 && <EventMap events={result.gdelt_events} />}
 
-                        {ans.timeline?.length > 0 && (
-                            <div style={{ background: "#0d1220", border: "1px solid #1e2a3a", borderRadius: "12px", padding: "20px" }}>
-                                <div style={{
-                                    display: "flex", alignItems: "baseline", gap: "10px", marginBottom: "20px",
-                                }}>
-                                    <div style={{ fontSize: "11px", color: "#64748b", fontWeight: 700 }}>CHRONOLOGIE</div>
-                                    {/* NOUVEAU — précision sur l'origine des dates */}
-                                    <div style={{ fontSize: "10px", color: "#334155", fontStyle: "italic" }}>
-                                        dates générées par IA — non extraites des données de sanctions structurées
-                                    </div>
-                                </div>
-                                <div style={{ position: "relative" }}>
-                                    <div style={{ position: "absolute", left: "60px", top: 0, bottom: 0, width: "2px", background: "#1e2a3a" }} />
-                                    {ans.timeline.map((item, i) => (
-                                        <div key={i} style={{ display: "flex", gap: "20px", marginBottom: "20px", position: "relative" }}>
-                                            <div style={{
-                                                width: "50px", flexShrink: 0, textAlign: "right",
-                                                fontSize: "12px", fontWeight: 700,
-                                                color: IMPORTANCE_COLORS[item.importance] || "#64748b", paddingTop: "2px"
-                                            }}>{item.date}</div>
-                                            <div style={{
-                                                width: "12px", height: "12px", borderRadius: "50%", flexShrink: 0,
-                                                background: IMPORTANCE_COLORS[item.importance] || "#64748b",
-                                                border: "2px solid #0d1220", marginTop: "2px", zIndex: 1
-                                            }} />
-                                            <div style={{
-                                                flex: 1, padding: "8px 14px", borderRadius: "8px",
-                                                background: "#0a0e1a", border: "1px solid #1e2a3a",
-                                                fontSize: "13px", lineHeight: 1.5, color: "#94a3b8",
-                                                display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "10px",
-                                            }}>
-                                                <span>{item.event}</span>
-                                                {/* NOUVEAU — tag IA sur chaque item */}
-                                                <span style={{
-                                                    fontSize: "8px", fontWeight: 700, color: "#475569",
-                                                    background: "#0d1220", border: "1px solid #1e2a3a",
-                                                    borderRadius: "4px", padding: "2px 5px",
-                                                    flexShrink: 0, whiteSpace: "nowrap",
-                                                }}>IA</span>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
+                        {ans.timeline?.length > 0 && <Timeline items={ans.timeline} />}
 
                         {ans.sections?.length > 0 && (
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
