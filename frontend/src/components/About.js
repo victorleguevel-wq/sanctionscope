@@ -1,13 +1,39 @@
+import { useState, useEffect } from "react";
+import axios from "axios";
+import { API_URL } from "../config";
+
+// Libellés et notes éditoriales — non calculables automatiquement,
+// ces éléments de contexte restent rédigés à la main.
+const DIVERGENCE_META = {
+    RU:   { label: "Russie", note: "Veto russe au Conseil de sécurité — l'UE seule rejoint les USA depuis 2022" },
+    IR:   { label: "Iran", note: "Accord nucléaire : positions divergentes" },
+    KP:   { label: "Corée du Nord", note: "Rare cas de consensus où l'ONU sanctionne plus" },
+    VE:   { label: "Venezuela", note: "Sanctions unilatérales américaines" },
+    CU:   { label: "Cuba", note: "Embargo historique non reconnu par l'ONU" },
+    ML:   { label: "Mali", note: "Sanctions portées quasi exclusivement par l'UE" },
+    SDGT: { label: "Terrorisme global", note: "Définition américaine non ratifiée par l'ONU" },
+};
+
 export default function About() {
-    const DIVERGENCES = [
-        { label: "Russie", ofac: 6364, un: 0, eu: 320, note: "Veto russe au Conseil de sécurité — l'UE seule rejoint les USA depuis 2022" },
-        { label: "Terrorisme global", ofac: 3165, un: 0, eu: 0, note: "Définition américaine non ratifiée par l'ONU" },
-        { label: "Iran", ofac: 674, un: 121, eu: 0, note: "Accord nucléaire : positions divergentes" },
-        { label: "Corée du Nord", ofac: 69, un: 155, eu: 0, note: "Rare cas de consensus où l'ONU sanctionne plus" },
-        { label: "Venezuela", ofac: 166, un: 0, eu: 0, note: "Sanctions unilatérales américaines" },
-        { label: "Cuba", ofac: 77, un: 0, eu: 0, note: "Embargo historique non reconnu par l'ONU" },
-        { label: "Mali", ofac: 0, un: 0, eu: 0, note: "Sanctions portées quasi exclusivement par l'UE" },
-    ];
+    const [stats, setStats] = useState(null);
+    const [sources, setSources] = useState([]);
+    const [divergence, setDivergence] = useState([]);
+
+    useEffect(() => {
+        axios.get(`${API_URL}/stats`).then(r => setStats(r.data)).catch(() => {});
+        axios.get(`${API_URL}/sources`).then(r => setSources(r.data)).catch(() => {});
+        axios.get(`${API_URL}/analysis/divergence`).then(r => setDivergence(r.data)).catch(() => {});
+    }, []);
+
+    const colorFor = key => sources.find(s => s.key === key)?.color || "#64748b";
+
+    const CHIFFRES_CLES = stats ? [
+        { value: stats.total_ofac?.toLocaleString(), label: "entités OFAC", color: colorFor("OFAC") },
+        { value: stats.total_un?.toLocaleString(), label: "entités ONU", color: colorFor("UN") },
+        { value: stats.total_eu?.toLocaleString(), label: "entités UE", color: colorFor("EU") },
+        { value: stats.total_cn?.toLocaleString(), label: "contre-sanctions Chine", color: colorFor("CN") },
+        { value: stats.total_matches?.toLocaleString(), label: "entités OFAC ∩ ONU", color: "#7c3aed" },
+    ] : [];
 
     return (
         <div style={{
@@ -64,27 +90,23 @@ export default function About() {
                 </p>
             </section>
 
-            {/* Chiffre choc */}
-            <div style={{
-                background: "#0d1220", border: "1px solid #1e3a5f",
-                borderRadius: "14px", padding: "28px 32px", marginBottom: "40px",
-                display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr", gap: "20px", textAlign: "center",
-            }}>
-                {[
-                    { value: "19 122", label: "entités OFAC", color: "#ef4444" },
-                    { value: "1 002", label: "entités ONU", color: "#3b82f6" },
-                    { value: "9 283", label: "entités UE", color: "#22c55e" },
-                    { value: "330", label: "contre-sanctions Chine", color: "#f59e0b" },
-                    { value: "146", label: "entités OFAC ∩ ONU", color: "#7c3aed" },
-                ].map(s => (
-                    <div key={s.value}>
-                        <div style={{ fontSize: "26px", fontWeight: 900, color: s.color, letterSpacing: "-1px", marginBottom: "6px" }}>
-                            {s.value}
+            {/* Chiffre choc — dynamique via /stats et /sources */}
+            {stats && (
+                <div style={{
+                    background: "#0d1220", border: "1px solid #1e3a5f",
+                    borderRadius: "14px", padding: "28px 32px", marginBottom: "40px",
+                    display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr", gap: "20px", textAlign: "center",
+                }}>
+                    {CHIFFRES_CLES.map(s => (
+                        <div key={s.label}>
+                            <div style={{ fontSize: "26px", fontWeight: 900, color: s.color, letterSpacing: "-1px", marginBottom: "6px" }}>
+                                {s.value}
+                            </div>
+                            <div style={{ fontSize: "11px", color: "#64748b", lineHeight: 1.5 }}>{s.label}</div>
                         </div>
-                        <div style={{ fontSize: "11px", color: "#64748b", lineHeight: 1.5 }}>{s.label}</div>
-                    </div>
-                ))}
-            </div>
+                    ))}
+                </div>
+            )}
 
             {/* Section 2 */}
             <section style={{ marginBottom: "40px" }}>
@@ -120,7 +142,7 @@ export default function About() {
                 </p>
             </section>
 
-            {/* Table divergences */}
+            {/* Table divergences — dynamique via /analysis/divergence */}
             <section style={{ marginBottom: "40px" }}>
                 <h2 style={{
                     fontSize: "13px", fontWeight: 700, color: "#3b82f6",
@@ -129,29 +151,32 @@ export default function About() {
                     LES DIVERGENCES LES PLUS RÉVÉLATRICES
                 </h2>
                 <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                    {DIVERGENCES.map(d => (
-                        <div key={d.label} style={{
-                            background: "#0d1220", border: "1px solid #1e2a3a",
-                            borderRadius: "10px", padding: "14px 18px",
-                            display: "grid", gridTemplateColumns: "110px 70px 70px 70px 1fr", gap: "10px",
-                            alignItems: "center",
-                        }}>
-                            <div style={{ fontSize: "13px", fontWeight: 700 }}>{d.label}</div>
-                            <div style={{ fontSize: "12px" }}>
-                                <span style={{ color: "#ef4444", fontWeight: 700 }}>{d.ofac.toLocaleString()}</span>
-                                <span style={{ color: "#475569", fontSize: "10px" }}> OFAC</span>
+                    {divergence.map(d => {
+                        const meta = DIVERGENCE_META[d.key] || { label: d.key, note: "" };
+                        return (
+                            <div key={d.key} style={{
+                                background: "#0d1220", border: "1px solid #1e2a3a",
+                                borderRadius: "10px", padding: "14px 18px",
+                                display: "grid", gridTemplateColumns: "110px 70px 70px 70px 1fr", gap: "10px",
+                                alignItems: "center",
+                            }}>
+                                <div style={{ fontSize: "13px", fontWeight: 700 }}>{meta.label}</div>
+                                <div style={{ fontSize: "12px" }}>
+                                    <span style={{ color: colorFor("OFAC"), fontWeight: 700 }}>{(d.counts.OFAC || 0).toLocaleString()}</span>
+                                    <span style={{ color: "#475569", fontSize: "10px" }}> OFAC</span>
+                                </div>
+                                <div style={{ fontSize: "12px" }}>
+                                    <span style={{ color: colorFor("UN"), fontWeight: 700 }}>{(d.counts.UN || 0).toLocaleString()}</span>
+                                    <span style={{ color: "#475569", fontSize: "10px" }}> ONU</span>
+                                </div>
+                                <div style={{ fontSize: "12px" }}>
+                                    <span style={{ color: colorFor("EU"), fontWeight: 700 }}>{(d.counts.EU || 0).toLocaleString()}</span>
+                                    <span style={{ color: "#475569", fontSize: "10px" }}> UE</span>
+                                </div>
+                                <div style={{ fontSize: "11px", color: "#475569", fontStyle: "italic" }}>{meta.note}</div>
                             </div>
-                            <div style={{ fontSize: "12px" }}>
-                                <span style={{ color: "#3b82f6", fontWeight: 700 }}>{d.un.toLocaleString()}</span>
-                                <span style={{ color: "#475569", fontSize: "10px" }}> ONU</span>
-                            </div>
-                            <div style={{ fontSize: "12px" }}>
-                                <span style={{ color: "#22c55e", fontWeight: 700 }}>{d.eu.toLocaleString()}</span>
-                                <span style={{ color: "#475569", fontSize: "10px" }}> UE</span>
-                            </div>
-                            <div style={{ fontSize: "11px", color: "#475569", fontStyle: "italic" }}>{d.note}</div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
                 <div style={{ fontSize: "11px", color: "#334155", marginTop: "10px", fontStyle: "italic" }}>
                     La Corée du Nord est le seul cas où l'ONU sanctionne davantage : preuve qu'un consensus est possible
@@ -173,25 +198,25 @@ export default function About() {
                         {
                             source: "OFAC SDN List",
                             url: "https://ofac.treasury.gov/specially-designated-nationals-and-blocked-persons-list-sdn-human-readable-lists",
-                            description: "Liste officielle du Trésor américain, parsée depuis le format XML. Mise à jour régulière. Contient 19 122 entrées, comprenant des individus, des organisations, des navires et aéronefs. Ne fournit pas de date de désignation par entité.",
+                            description: "Liste officielle du Trésor américain, parsée depuis le format XML. Mise à jour régulière. Contient des individus, des organisations, des navires et aéronefs. Ne fournit pas de date de désignation par entité.",
                             color: "#ef4444",
                         },
                         {
                             source: "Liste consolidée ONU",
                             url: "https://www.un.org/securitycouncil/content/un-sc-consolidated-list",
-                            description: "Liste du Conseil de sécurité des Nations Unies, parsée depuis le format XML consolidé. Contient 1 002 entrées, uniquement des individus et organisations.",
+                            description: "Liste du Conseil de sécurité des Nations Unies, parsée depuis le format XML consolidé. Uniquement des individus et organisations.",
                             color: "#3b82f6",
                         },
                         {
                             source: "Liste consolidée UE",
                             url: "https://www.sanctionsmap.eu",
-                            description: "Liste des mesures restrictives de l'Union Européenne. Contient 9 283 entrées, avec dates de désignation disponibles — seule source du projet permettant une analyse temporelle fiable à ce jour.",
+                            description: "Liste des mesures restrictives de l'Union Européenne. Avec dates de désignation disponibles — seule source du projet permettant une analyse temporelle fiable à ce jour.",
                             color: "#22c55e",
                         },
                         {
                             source: "Contre-sanctions chinoises",
                             url: "https://www.mofa.gov.cn",
-                            description: "Mesures de rétorsion annoncées par le Ministère des Affaires étrangères chinois, essentiellement dirigées contre des entités et responsables américains et européens. Contient 330 entrées.",
+                            description: "Mesures de rétorsion annoncées par le Ministère des Affaires étrangères chinois, essentiellement dirigées contre des entités et responsables américains et européens.",
                             color: "#f59e0b",
                         },
                         {

@@ -27,6 +27,20 @@ export default function Timeline({ items = [] }) {
         .filter(item => item.year !== null)
         .sort((a, b) => a.year - b.year);
 
+    // Wheel zoom — déclaré avant tout "return" conditionnel (règle des hooks React)
+    const onWheel = e => {
+        e.preventDefault();
+        const factor = e.deltaY < 0 ? 1.15 : 0.87;
+        setZoom(z => Math.max(1, Math.min(8, z * factor)));
+    };
+
+    useEffect(() => {
+        const el = trackRef.current;
+        if (!el) return;
+        el.addEventListener("wheel", onWheel, { passive: false });
+        return () => el.removeEventListener("wheel", onWheel);
+    }, []);
+
     if (dated.length === 0) return null;
 
     const minYear = dated[0].year;
@@ -54,20 +68,6 @@ export default function Timeline({ items = [] }) {
         setOffset(Math.max(0, Math.min(maxOffset, offsetStart.current - delta)));
     };
     const onMouseUp = () => { isDragging.current = false; };
-
-    // Wheel zoom
-    const onWheel = e => {
-        e.preventDefault();
-        const factor = e.deltaY < 0 ? 1.15 : 0.87;
-        setZoom(z => Math.max(1, Math.min(8, z * factor)));
-    };
-
-    useEffect(() => {
-        const el = trackRef.current;
-        if (!el) return;
-        el.addEventListener("wheel", onWheel, { passive: false });
-        return () => el.removeEventListener("wheel", onWheel);
-    }, []);
 
     // Années à afficher sur l'axe
     const tickCount = Math.min(12, Math.max(4, Math.floor(zoom * 4)));

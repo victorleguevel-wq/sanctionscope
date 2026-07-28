@@ -1,14 +1,19 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
+import { API_URL } from "../config";
 
 export default function Stats() {
   const [stats, setStats] = useState(null);
+  const [sources, setSources] = useState([]);
 
   useEffect(() => {
-    axios.get("http://localhost:8000/stats").then(r => setStats(r.data));
+    axios.get(`${API_URL}/stats`).then(r => setStats(r.data));
+    axios.get(`${API_URL}/sources`).then(r => setSources(r.data));
   }, []);
 
   if (!stats) return null;
+
+  const colorFor = key => sources.find(s => s.key === key)?.color || "#64748b";
 
   const items = [
     {
@@ -16,28 +21,28 @@ export default function Stats() {
       value: stats.total_ofac?.toLocaleString(),
       sublabel: "entités sanctionnées",
       tooltip: "Entités inscrites sur la liste SDN de l'OFAC américain",
-      color: "#ef4444",
+      color: colorFor("OFAC"),
     },
     {
       label: "ONU",
       value: stats.total_un?.toLocaleString(),
       sublabel: "entités sanctionnées",
       tooltip: "Entités inscrites sur la liste consolidée des sanctions du Conseil de sécurité de l'ONU",
-      color: "#3b82f6",
+      color: colorFor("UN"),
     },
     {
       label: "EU",
       value: stats.total_eu?.toLocaleString(),
       sublabel: "entités sanctionnées",
       tooltip: "Entités inscrites sur les listes de sanctions de l'Union Européenne (OpenSanctions)",
-      color: "#22c55e",
+      color: colorFor("EU"),
     },
     {
       label: "CN",
       value: stats.total_cn?.toLocaleString(),
       sublabel: "contre-sanctions",
       tooltip: "Entités visées par les contre-sanctions chinoises",
-      color: "#f59e0b",
+      color: colorFor("CN"),
     },
     {
       label: "Matches",

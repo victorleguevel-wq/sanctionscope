@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import EventMap from "./EventMap";
 import Timeline from "./Timeline";
+import { API_URL } from "../config";
 
 export default function Ask({ initialQuestion = "" }) {
     const [question, setQuestion] = useState("");
@@ -30,7 +31,7 @@ export default function Ask({ initialQuestion = "" }) {
         setLoading(true);
         setResult(null);
         try {
-            const { data } = await axios.get("http://localhost:8000/ask", {
+            const { data } = await axios.get(`${API_URL}/ask`, {
                 params: { question: query }
             });
             setResult(data);
@@ -54,11 +55,7 @@ export default function Ask({ initialQuestion = "" }) {
         setExporting(false);
     };
 
-    const IMPORTANCE_COLORS = {
-        high: "#ef4444",
-        medium: "#f97316",
-        low: "#3b82f6",
-    };
+
 
     const SOURCE_COLORS = {
         sanctions: "#7c3aed",
@@ -259,13 +256,6 @@ export default function Ask({ initialQuestion = "" }) {
                                 </div>
                                 <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                                     {ans.key_figures.map((fig, i) => {
-                                        const isIndividual = fig.source === "OFAC"
-                                            ? fig.role?.toLowerCase().includes("ministre")
-                                            || fig.role?.toLowerCase().includes("général")
-                                            || fig.role?.toLowerCase().includes("directeur")
-                                            || fig.role?.toLowerCase().includes("président")
-                                            || !fig.name?.includes(" ")
-                                            : true;
                                         const orgKeywords = ["bank", "co.", "corp", "ltd", "group", "company", "holding",
                                             "ministry", "ministère", "organization", "agency", "fund",
                                             "industries", "trading", "international", "enterprise"];
