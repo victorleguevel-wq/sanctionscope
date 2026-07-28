@@ -18,16 +18,6 @@ const HOOK_STATS = [
 
 const FEATURES = [
     {
-        key: "explore",
-        icon: "📚",
-        title: "Explorer",
-        description:
-            "Parcourir les listes officielles, entité par entité et juridiction par juridiction.",
-        tag: "01",
-        color: "#3b82f6",
-        cta: "Explorer →",
-    },
-    {
         key: "analysis",
         icon: "⚖️",
         title: "Comparer",
