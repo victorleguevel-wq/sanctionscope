@@ -1,7 +1,8 @@
+import os
 from sqlalchemy import create_engine, Column, Integer, String, Date, Text, ForeignKey, ARRAY
 from sqlalchemy.orm import declarative_base, relationship, Session
 
-DATABASE_URL = "postgresql://localhost/sanctionscope"
+DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://localhost/sanctionscope")
 engine = create_engine(DATABASE_URL)
 Base = declarative_base()
 
