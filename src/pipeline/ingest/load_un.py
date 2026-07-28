@@ -1,26 +1,24 @@
 from pathlib import Path
 import sys
-sys.path.insert(0, str(Path(__file__).parents[2]))
+sys.path.insert(0, str(Path(__file__).parents[3]))
 
-from src.parsers.eu import parse_eu
+from src.parsers.un import parse_un
 from src.models.database import engine, Entity, Alias, Sanction
 from sqlalchemy.orm import Session
-from datetime import date
 
 
-def load_eu(filepath: Path = None):
-    kwargs = {"filepath": filepath} if filepath else {}
-    entities = parse_eu(**kwargs)
+def load_un():
+    entities = parse_un()
 
     with Session(engine) as session:
-        # Supprime les anciennes entités EU pour permettre le rechargement propre
-        existing = session.query(Entity).filter_by(source="EU").count()
+        # Supprime et recharge pour avoir les nationalités à jour
+        existing = session.query(Entity).filter_by(source="UN").count()
         if existing > 0:
-            print(f"{existing} entités EU déjà en base — suppression pour rechargement...")
-            ids = [e.id for e in session.query(Entity.id).filter_by(source="EU")]
+            print(f"{existing} entités ONU en base — rechargement...")
+            ids = [e.id for e in session.query(Entity.id).filter_by(source="UN")]
             session.query(Alias).filter(Alias.entity_id.in_(ids)).delete(synchronize_session=False)
             session.query(Sanction).filter(Sanction.entity_id.in_(ids)).delete(synchronize_session=False)
-            session.query(Entity).filter_by(source="EU").delete(synchronize_session=False)
+            session.query(Entity).filter_by(source="UN").delete(synchronize_session=False)
             session.commit()
 
         count = 0
@@ -29,7 +27,7 @@ def load_eu(filepath: Path = None):
                 uid=e["uid"],
                 name=e["name"],
                 entity_type=e["type"],
-                source="EU",
+                source="UN",
                 programs=e["programs"],
                 nationality=(e["nationalities"][0] if e["nationalities"] else None),
             )
@@ -44,31 +42,20 @@ def load_eu(filepath: Path = None):
                 ))
 
             for program in e["programs"]:
-                listed = None
-                if e.get("listed_on"):
-                    try:
-                        listed = date.fromisoformat(e["listed_on"])
-                    except ValueError:
-                        pass
                 session.add(Sanction(
                     entity_id=entity.id,
-                    source="EU",
+                    source="UN",
                     program=program,
-                    listed_on=listed,
                 ))
 
             count += 1
-            if count % 500 == 0:
+            if count % 200 == 0:
                 session.commit()
                 print(f"  {count} entités chargées...")
 
         session.commit()
-        print(f"✅ {count} entités EU chargées en base.")
+        print(f"✅ {count} entités ONU chargées.")
 
 
 if __name__ == "__main__":
-    import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--file", type=Path, help="Chemin vers targets.simple.csv")
-    args = parser.parse_args()
-    load_eu(filepath=args.file)
+    load_un()

@@ -2,7 +2,7 @@ from pathlib import Path
 import sys
 sys.path.insert(0, str(Path(__file__).parents[2]))
 
-from src.models.database import engine, Entity
+from src.models.database import engine, Entity, EntityMatch
 from sqlalchemy.orm import Session
 from rapidfuzz import fuzz
 
@@ -19,7 +19,6 @@ def find_candidates(threshold: float = 85.0) -> list[dict]:
         un_entities = session.query(Entity).filter_by(source="UN").all()
         ofac_entities = session.query(Entity).filter_by(source="OFAC").all()
 
-        # Pré-calcule les noms normalisés OFAC
         ofac_normalized = [
             (e, normalize(e.name)) for e in ofac_entities
         ]
@@ -38,7 +37,6 @@ def find_candidates(threshold: float = 85.0) -> list[dict]:
                     best_match = ofac_entity
 
             if best_score >= threshold and best_score < 100:
-                # On exclut les 100 (déjà détectés par exact match)
                 candidates.append({
                     "un_id": un_entity.id,
                     "un_name": un_entity.name,
@@ -51,18 +49,8 @@ def find_candidates(threshold: float = 85.0) -> list[dict]:
         return sorted(candidates, key=lambda x: x["score"], reverse=True)
 
 
-if __name__ == "__main__":
-    print("Recherche de candidats... (peut prendre 30-60 secondes)")
-    candidates = find_candidates(threshold=85.0)
-    print(f"\n{len(candidates)} candidats trouvés (score > 85) :\n")
-    for c in candidates[:20]:
-        print(f"[{c['score']:5.1f}] {c['un_name']!r:45} <-> {c['ofac_name']!r}")
-
-
 def save_candidates(candidates: list[dict]):
-    from src.models.database import EntityMatch
     with Session(engine) as session:
-        # Vide les anciens matches fuzzy
         session.query(EntityMatch).filter_by(method="fuzzy").delete()
         for c in candidates:
             session.add(EntityMatch(
@@ -74,8 +62,16 @@ def save_candidates(candidates: list[dict]):
         session.commit()
         print(f"{len(candidates)} matches sauvegardés.")
 
-if __name__ == "__main__":
+
+def main(threshold: float = 85.0, save: bool = True):
     print("Recherche de candidats... (peut prendre 30-60 secondes)")
-    candidates = find_candidates(threshold=85.0)
-    print(f"{len(candidates)} candidats trouvés.")
-    save_candidates(candidates)
+    candidates = find_candidates(threshold=threshold)
+    print(f"\n{len(candidates)} candidats trouvés (score > {threshold}) :\n")
+    for c in candidates[:20]:
+        print(f"[{c['score']:5.1f}] {c['un_name']!r:45} <-> {c['ofac_name']!r}")
+    if save:
+        save_candidates(candidates)
+
+
+if __name__ == "__main__":
+    main()

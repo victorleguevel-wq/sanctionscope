@@ -9,6 +9,7 @@ import re
 from dotenv import load_dotenv
 import anthropic
 from src.pipeline.gdelt import get_gdelt_events
+from src.sources import SOURCES, get_sources_payload
 
 load_dotenv()
 client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
@@ -25,66 +26,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ── Helpers ─────────────────────────────────────────────────────────────────
+# Labels de sources dérivés du registre central (src/sources.py)
+# Pour ajouter une source : modifier uniquement src/sources.py
+SOURCE_LABELS = {k: v["label"] for k, v in SOURCES.items()}
 
-def normalize(name: str) -> str:
-    return " ".join(name.lower().strip().split())
 
-# Mapping programme OFAC/ONU → ISO-2 du pays ciblé
-PROGRAM_TO_COUNTRY = {
-    "RUSSIA-EO14024": "RU", "CAATSA - RUSSIA": "RU", "RUSSIA-EO14065": "RU", "RUSSIA": "RU",
-    "IRAN": "IR", "CAATSA - IRAN": "IR", "IRAN-EO13876": "IR", "IFSR": "IR", "IFCA": "IR", "IRGC": "IR",
-    "DPRK": "KP", "DPRK2": "KP", "DPRK3": "KP", "DPRK4": "KP",
-    "CUBA": "CU", "CUBA-EO14404": "CU",
-    "SYRIA": "SY",
-    "VENEZUELA": "VE",
-    "BELARUS": "BY", "BELARUS-EO14038": "BY",
-    "UKRAINE-EO13662": "UA", "UKRAINE-EO13660": "UA", "UKRAINE-EO13661": "UA", "UKRAINE-EO13685": "UA",
-    "MYANMAR-EO14014": "MM",
-    "SOMALIA": "SO",
-    "SUDAN": "SD",
-    "LIBYA": "LY",
-    "IRAQ": "IQ",
-    "YEMEN": "YE",
-    "HAITI": "HT",
-    "MALI": "ML",
-    "CAR": "CF",
-    "DRC": "CD",
-    "BALKANS": "RS",
-    "AFGHANISTAN": "AF", "TALIBAN": "AF",
-    "ZIMBABWE": "ZW",
-    "BURUNDI": "BI",
-    "ETHIOPIA": "ET",
-    "NICARAGUA": "NI",
-    "SOUTH SUDAN": "SS",
-    # Chine : elle sanctionne surtout des entités américaines
-    "CN-COUNTER": "US",
-    "CN-EXPORT": "US",
-    "CN-SANCTIONS": "US",
-    "EU-UKRAINE": "UA", "EU-RUSSIA": "RU", "EU-IRAN": "IR",
-    "EU-SYRIA": "SY", "EU-TERROR": None, "EU-DPRK": "KP",
-    "EU-DRC": "CD", "EU-AFGHANISTAN": "AF", "EU-MYANMAR": "MM",
-    "EU-VENEZUELA": "VE", "EU-CAR": "CF", "EU-LIBYA": "LY",
-    "EU-SOMALIA": "SO", "EU-SUDAN": "SD", "EU-TUNISIA": "TN",
-    "EU-HAITI": "HT", "EU-MALI": "ML", "EU-YEMEN": "YE",
-    "EU-NICARAGUA": "NI", "EU-GUINEA": "GN", "EU-BELARUS": "BY",
-    "EU-CYBER": None, "EU-OTHER": None,
-    "IRAN-EO13902": "IR",
-    "IRAN-EO13846": "IR",
-    "IRAN-HR": "IR",
-    "IRAN-EO13871": "IR",
-    "IRAN-TRA": "IR",
-    "IRAQ2": "IQ",
-    "VENEZUELA-EO13850": "VE",
-    "VENEZUELA-EO13884": "VE",
-    "BURMA-EO14014": "MM",
-    "DRCONGO": "CD",
-    "SUDAN-EO14098": "SD",
-    "LIBYA3": "LY",
-    "BALKANS-EO14033": "RS",
-}
+# ── Sources ──────────────────────────────────────────────────────────────────
 
-SOURCE_LABELS = {"OFAC": "États-Unis (OFAC)", "UN": "Nations Unies", "CN": "Chine"}
+@app.get("/sources")
+def get_sources():
+    return get_sources_payload()
 
 
 # ── Entités ──────────────────────────────────────────────────────────────────
@@ -116,61 +67,8 @@ def get_entity(entity_id: int):
         }
 
 
-# ── Graphe ───────────────────────────────────────────────────────────────────
-
-@app.get("/graph")
-def get_graph(search: str = None, program: str = None, limit: int = 100):
-    from src.pipeline.build_relations import Relation
-    with Session(engine) as session:
-        query = session.query(Entity)
-        if search:
-            query = query.filter(Entity.name.ilike(f"%{search}%"))
-        if program:
-            query = query.filter(Entity.programs.any(program))
-        entities = query.limit(limit).all()
-        entity_ids = {e.id for e in entities}
-
-        nodes = [{
-            "id": e.id, "name": e.name, "type": e.entity_type,
-            "source": e.source, "programs": e.programs or [],
-            "program": (e.programs or ["UNKNOWN"])[0],
-        } for e in entities]
-
-        relations = session.query(Relation).filter(
-            Relation.source_id.in_(entity_ids),
-            Relation.target_id.in_(entity_ids),
-        ).all()
-
-        links = [{"source": r.source_id, "target": r.target_id, "type": r.relation_type, "weight": r.weight} for r in relations]
-        return {"nodes": nodes, "links": links}
 
 
-@app.get("/graph/entity/{entity_id}")
-def get_entity_graph(entity_id: int):
-    from src.pipeline.build_relations import Relation
-    with Session(engine) as session:
-        center = session.get(Entity, entity_id)
-        if not center:
-            return {"error": "Not found"}
-
-        relations = session.query(Relation).filter(
-            (Relation.source_id == entity_id) | (Relation.target_id == entity_id)
-        ).limit(20).all()
-
-        connected_ids = {r.source_id for r in relations} | {r.target_id for r in relations}
-        connected_ids.discard(entity_id)
-        connected = session.query(Entity).filter(Entity.id.in_(connected_ids)).all()
-
-        nodes = [{
-            "id": center.id, "name": center.name, "type": center.entity_type,
-            "source": center.source, "programs": center.programs or [], "center": True
-        }] + [{
-            "id": e.id, "name": e.name, "type": e.entity_type,
-            "source": e.source, "programs": e.programs or [], "center": False
-        } for e in connected]
-
-        links = [{"source": r.source_id, "target": r.target_id, "weight": r.weight} for r in relations]
-        return {"nodes": nodes, "links": links, "center": center.name}
 
 
 # ── Stats ────────────────────────────────────────────────────────────────────
@@ -187,70 +85,10 @@ def get_stats():
         }
 
 
-# ── Analyse : divergence OFAC vs ONU ────────────────────────────────────────
-
-@app.get("/analysis/divergence")
-def get_divergence(program: str = "IRAN"):
-    with Session(engine) as session:
-        ofac_entities = session.query(Entity).filter(Entity.source == "OFAC", Entity.programs.any(program)).all()
-        un_entities   = session.query(Entity).filter(Entity.source == "UN",   Entity.programs.any(program)).all()
-
-        ofac_names = {normalize(e.name): e for e in ofac_entities}
-        un_names   = {normalize(e.name): e for e in un_entities}
-
-        return {
-            "program":        program,
-            "ofac_total":     len(ofac_entities),
-            "un_total":       len(un_entities),
-            "ofac_only":      [{"id": e.id, "name": e.name, "type": e.entity_type, "source": "OFAC"} for name, e in ofac_names.items() if name not in un_names],
-            "un_only":        [{"id": e.id, "name": e.name, "type": e.entity_type, "source": "UN"}   for name, e in un_names.items()   if name not in ofac_names],
-            "both":           [{"id": e.id, "name": e.name, "type": e.entity_type, "source": "BOTH"} for name, e in ofac_names.items() if name in un_names],
-            "divergence_rate": round(len([n for n in ofac_names if n not in un_names]) / max(len(ofac_entities), 1) * 100, 1),
-        }
-
-
-# ── Analyse : vue d'ensemble par programme ───────────────────────────────────
-
-@app.get("/analysis/overview")
-def get_overview():
-    programs = [
-        {"key": "RUSSIA-EO14024",   "label": "Russie",                      "flag": "🇷🇺", "color": "#ef4444"},
-        {"key": "CAATSA - RUSSIA",  "label": "Russie (CAATSA)",             "flag": "🇷🇺", "color": "#ef4444"},
-        {"key": "IRAN",             "label": "Iran",                         "flag": "🇮🇷", "color": "#f97316"},
-        {"key": "DPRK",             "label": "Corée du Nord",                "flag": "🇰🇵", "color": "#8b5cf6"},
-        {"key": "CUBA",             "label": "Cuba",                         "flag": "🇨🇺", "color": "#06b6d4"},
-        {"key": "SYRIA",            "label": "Syrie",                        "flag": "🇸🇾", "color": "#eab308"},
-        {"key": "VENEZUELA",        "label": "Venezuela",                    "flag": "🇻🇪", "color": "#ec4899"},
-        {"key": "BELARUS",          "label": "Biélorussie",                  "flag": "🇧🇾", "color": "#f43f5e"},
-        {"key": "UKRAINE-EO13662",  "label": "Ukraine (entités pro-russes)", "flag": "🇺🇦", "color": "#3b82f6"},
-        {"key": "MYANMAR-EO14014",  "label": "Myanmar",                     "flag": "🇲🇲", "color": "#84cc16"},
-        {"key": "SDGT",             "label": "Terrorisme global",            "flag": "⚠️",  "color": "#dc2626"},
-        {"key": "CYBER2",           "label": "Cyberattaques",               "flag": "💻", "color": "#7c3aed"},
-        {"key": "BALKANS",          "label": "Balkans",                      "flag": "🌍", "color": "#0891b2"},
-        {"key": "CAR",              "label": "Centrafrique",                 "flag": "🇨🇫", "color": "#d97706"},
-        {"key": "CN-COUNTER",       "label": "Contre-sanctions chinoises",   "flag": "🇨🇳", "color": "#dc2626"},
-        {"key": "CN-EXPORT",        "label": "Contrôle exports chinois",     "flag": "🇨🇳", "color": "#b91c1c"},
-    ]
-
-    with Session(engine) as session:
-        result = []
-        for p in programs:
-            ofac  = session.query(Entity).filter(Entity.source == "OFAC", Entity.programs.any(p["key"])).count()
-            un    = session.query(Entity).filter(Entity.source == "UN",   Entity.programs.any(p["key"])).count()
-            cn    = session.query(Entity).filter(Entity.source == "CN",   Entity.programs.any(p["key"])).count()
-            total = ofac + un + cn
-            if total == 0:
-                continue
-            result.append({
-                **p,
-                "ofac": ofac, "un": un, "cn": cn,
-                "total": total,
-                "divergence": round(max(ofac, un, cn) / total * 100, 1),
-            })
-        return sorted(result, key=lambda x: x["total"], reverse=True)
-
-
 # ── Analyse : carte des sanctions par pays ───────────────────────────────────
+# Utilise Entity.target_country, déjà résolu et stocké en base par
+# src/pipeline/resolve_target_country.py (nationality en priorité, sinon
+# fallback via le mapping programme → pays). Ne PAS recalculer ici.
 
 @app.get("/analysis/sanctions-map")
 def get_sanctions_map():
@@ -298,33 +136,53 @@ def get_country_entities(iso2: str, source: str = None):
             "programs": e.programs or [],
         } for e in entities]
 
-# ── Analyse : données brutes par pays (legacy) ───────────────────────────────
+# ── Analyse : divergence par pays/programme ──────────────────────────────────
+# Recalculé dynamiquement à partir de target_country (source de vérité unique).
+# Les notes éditoriales (contexte géopolitique) restent côté frontend, car
+# elles ne sont pas dérivables automatiquement des données.
 
-@app.get("/analysis/countries")
-def get_countries():
-    result = {}
+DIVERGENCE_COUNTRIES = ["RU", "IR", "KP", "VE", "CU", "ML"]
+
+@app.get("/analysis/divergence")
+def get_divergence_by_country():
     with Session(engine) as session:
-        for e in session.query(Entity).filter(Entity.source.in_(["OFAC", "UN"])).all():
-            for program in (e.programs or []):
-                country = PROGRAM_TO_COUNTRY.get(program.upper())
-                if not country:
-                    continue
-                if country not in result:
-                    result[country] = {"ofac": 0, "un": 0, "cn": 0, "total": 0}
-                key = "ofac" if e.source == "OFAC" else "un"
-                result[country][key] += 1
-                result[country]["total"] += 1
+        results = []
 
-        for e in session.query(Entity).filter_by(source="CN").all():
-            nat = e.nationality
-            if not nat:
+        for iso2 in DIVERGENCE_COUNTRIES:
+            counts = {}
+            for src in SOURCES.keys():
+                counts[src] = session.query(Entity).filter(
+                    Entity.target_country == iso2,
+                    Entity.source == src,
+                ).count()
+            total = sum(counts.values())
+            if total == 0:
                 continue
-            if nat not in result:
-                result[nat] = {"ofac": 0, "un": 0, "cn": 0, "total": 0}
-            result[nat]["cn"] += 1
-            result[nat]["total"] += 1
+            results.append({
+                "key": iso2,
+                "counts": counts,
+                "total": total,
+                "divergence_rate": round(max(counts.values()) / total * 100, 1),
+            })
 
-    return result
+        # Cas particulier : terrorisme global, un programme transverse
+        # qui ne cible pas un pays unique (pas de target_country pertinent).
+        terror_counts = {}
+        for src in SOURCES.keys():
+            terror_counts[src] = session.query(Entity).filter(
+                Entity.source == src,
+                Entity.programs.any("SDGT"),
+            ).count()
+        terror_total = sum(terror_counts.values())
+        if terror_total > 0:
+            results.append({
+                "key": "SDGT",
+                "counts": terror_counts,
+                "total": terror_total,
+                "divergence_rate": round(max(terror_counts.values()) / terror_total * 100, 1),
+            })
+
+        return sorted(results, key=lambda r: r["total"], reverse=True)
 
 
 # ── IA : question libre ──────────────────────────────────────────────────────

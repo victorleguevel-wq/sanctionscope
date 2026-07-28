@@ -1,19 +1,18 @@
 from pathlib import Path
 import sys
-sys.path.insert(0, str(Path(__file__).parents[2]))
+sys.path.insert(0, str(Path(__file__).parents[3]))
 
-from src.parsers.ofac import parse_ofac
+from src.parsers.china import parse_china
 from src.models.database import engine, Entity, Alias, Sanction
 from sqlalchemy.orm import Session
 
-def load_ofac():
-    entities = parse_ofac()
+def load_china():
+    entities = parse_china()
 
     with Session(engine) as session:
         count = 0
         for e in entities:
-            # Évite les doublons si on relance
-            existing = session.query(Entity).filter_by(uid=e["uid"], source="OFAC").first()
+            existing = session.query(Entity).filter_by(uid=e["uid"], source="CN").first()
             if existing:
                 continue
 
@@ -21,11 +20,12 @@ def load_ofac():
                 uid=e["uid"],
                 name=e["name"],
                 entity_type=e["type"],
-                source="OFAC",
+                source="CN",
                 programs=e["programs"],
+                nationality=(e["nationalities"][0] if e["nationalities"] else None),
             )
             session.add(entity)
-            session.flush()  # pour obtenir entity.id
+            session.flush()
 
             for a in e["aliases"]:
                 session.add(Alias(
@@ -37,14 +37,14 @@ def load_ofac():
             for program in e["programs"]:
                 session.add(Sanction(
                     entity_id=entity.id,
-                    source="OFAC",
+                    source="CN",
                     program=program,
                 ))
 
             count += 1
 
         session.commit()
-        print(f"{count} entités chargées dans PostgreSQL.")
+        print(f"{count} entités chinoises chargées.")
 
 if __name__ == "__main__":
-    load_ofac()
+    load_china()
