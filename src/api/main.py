@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from pathlib import Path
@@ -6,6 +6,8 @@ import sys
 import os
 import json
 import re
+from collections import defaultdict
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
 import anthropic
 from src.pipeline.gdelt import get_gdelt_events
@@ -22,6 +24,7 @@ app = FastAPI(title="SanctionScope API")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000"],
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -29,6 +32,26 @@ app.add_middleware(
 # Labels de sources dérivés du registre central (src/sources.py)
 # Pour ajouter une source : modifier uniquement src/sources.py
 SOURCE_LABELS = {k: v["label"] for k, v in SOURCES.items()}
+
+
+# ── Limitation de requêtes pour la démo publique ─────────────────────────────
+# Protection simple contre un usage abusif du endpoint /ask, qui appelle
+# l'API Anthropic à chaque requête. En mémoire (suffisant pour une démo,
+# se réinitialise si le serveur redémarre).
+_request_log = defaultdict(list)
+MAX_REQUESTS_PER_DAY = 5
+
+def check_rate_limit(request: Request):
+    ip = request.client.host
+    now = datetime.now()
+    _request_log[ip] = [t for t in _request_log[ip] if now - t < timedelta(days=1)]
+
+    if len(_request_log[ip]) >= MAX_REQUESTS_PER_DAY:
+        raise HTTPException(
+            status_code=429,
+            detail="Limite quotidienne atteinte pour cette démo (5 questions/jour). Réessayez demain."
+        )
+    _request_log[ip].append(now)
 
 
 # ── Sources ──────────────────────────────────────────────────────────────────
@@ -65,10 +88,6 @@ def get_entity(entity_id: int):
             "source": e.source, "programs": e.programs,
             "aliases": [{"alias": a.alias, "type": a.alias_type} for a in e.aliases],
         }
-
-
-
-
 
 
 # ── Stats ────────────────────────────────────────────────────────────────────
@@ -188,7 +207,9 @@ def get_divergence_by_country():
 # ── IA : question libre ──────────────────────────────────────────────────────
 
 @app.get("/ask")
-def ask(question: str):
+def ask(question: str, request: Request):
+    check_rate_limit(request)
+
     with Session(engine) as session:
         entities_count = session.query(Entity).count()
 
@@ -285,7 +306,7 @@ Réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks, avec cette st
 
     message = client.messages.create(
         model="claude-sonnet-4-6",
-        max_tokens=8000,
+        max_tokens=4000,
         messages=[{"role": "user", "content": prompt}]
     )
 
